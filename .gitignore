@@ -1,0 +1,14 @@
+# cargo dependencies downloaded inside the docker container
+.cargo/cache
+
+# marker files for Makefile targets
+.cargo/.bucket-exists
+.cargo/.docker-debug-image-exists
+.cargo/.docker-release-image-exists
+
+# lambda bootstraps
+lambda/debug/bootstraps/
+lambda/release/bootstraps/
+
+/target
+**/*.rs.bk

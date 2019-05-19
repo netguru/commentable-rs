@@ -1,0 +1,17 @@
+[package]
+name = "lambda"
+version = "0.1.0"
+authors = ["Wojciech Olejnik <divoolej@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+chrono = { version = "^0.4", features = ["serde"] }
+lambda_http = "^0.1"
+lambda_runtime = "^0.2"
+maplit = "^1"
+reqwest = { version = "^0.9", default_features = false, features = ["rustls-tls"] }
+rusoto_core = { version = "^0.38", default_features = false, features = ["rustls"] }
+rusoto_dynamodb = { version = "^0.38", default_features = false, features = ["rustls"] }
+rust-crypto = "^0.2"
+serde = { version = "^1", features = ["derive"] }
+serde_json = "^1"
