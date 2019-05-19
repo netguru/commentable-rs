@@ -1,0 +1,71 @@
+use chrono::Utc;
+use lambda_http::{lambda, Request, Response, Body, RequestExt};
+use maplit::hashmap;
+use rusoto_core::Region;
+use rusoto_dynamodb::{DynamoDbClient};
+use serde::Deserialize;
+
+use ::lambda::utils::http::{ok, bad_request, unauthorized, internal_server_error};
+use ::lambda::utils::db::{hash, DynamoDbRecord, IntoDynamoDbAttributes};
+use ::lambda::models::user::User;
+
+#[derive(Deserialize)]
+struct Params {
+  id_token: String,
+}
+
+#[derive(Deserialize)]
+struct AuthData {
+  email: String,
+  name: String,
+  picture: String,
+}
+
+impl From<AuthData> for IntoDynamoDbAttributes {
+  fn from(auth_data: AuthData) -> Self {
+    IntoDynamoDbAttributes {
+      attributes: hashmap!{
+        String::from("id") => hash(&auth_data.email).into(),
+        String::from("name") => auth_data.name.into(),
+        String::from("email") => auth_data.email.into(),
+        String::from("picture_url") => auth_data.picture.into(),
+        String::from("auth_token") => hash(&Utc::now().to_string()).into(),
+        String::from("created_at") => Utc::now().to_rfc3339().into(),
+        String::from("updated_at") => Utc::now().to_rfc3339().into(),
+      }
+    }
+  }
+}
+
+pub fn auth_endpoint(request: Request) -> Response<Body> {
+  if let Ok(Some(params)) = request.payload::<Params>() {
+    let url = format!("https://oauth2.googleapis.com/tokeninfo?id_token={}", params.id_token);
+    // Validate the token using Google API
+    match reqwest::get(&url) {
+      Ok(mut response) => {
+        if let Ok(google_user) = response.json::<AuthData>() {
+          let db = DynamoDbClient::new(Region::default());
+          // Look for an existing user (id = hashed email)
+          match User::find(&db, hash(&google_user.email)) {
+            Ok(Some(user)) => ok(user.json()),
+            // Create a new user
+            Ok(None) => match User::create(&db, google_user.into()) {
+              Ok(user) => ok(user.json()),
+              Err(err) => internal_server_error(err.to_string()),
+            },
+            Err(err) => internal_server_error(err.to_string()),
+          }
+        } else {
+          unauthorized("Invalid id_token".to_string())
+        }
+      },
+      Err(error) => internal_server_error(error.to_string()),
+    }
+  } else {
+    bad_request("Invalid params.".to_string())
+  }
+}
+
+fn main() {
+  lambda!(|request, _| Ok(auth_endpoint(request)));
+}
