@@ -5,9 +5,9 @@ use rusoto_core::Region;
 use rusoto_dynamodb::{DynamoDbClient};
 use serde::Deserialize;
 
-use ::lambda::utils::http::{ok, bad_request, unauthorized, internal_server_error};
-use ::lambda::utils::db::{hash, DynamoDbRecord, IntoDynamoDbAttributes};
-use ::lambda::models::user::User;
+use ::commentable_rs::utils::http::{ok, bad_request, unauthorized, internal_server_error};
+use ::commentable_rs::utils::db::{hash, DynamoDbModel, IntoDynamoDbAttributes};
+use ::commentable_rs::models::user::User;
 
 #[derive(Deserialize)]
 struct Params {
@@ -25,19 +25,18 @@ impl From<AuthData> for IntoDynamoDbAttributes {
   fn from(auth_data: AuthData) -> Self {
     IntoDynamoDbAttributes {
       attributes: hashmap!{
-        String::from("id") => hash(&auth_data.email).into(),
+        String::from("primary_key") => format!("USER_{}", hash(&auth_data.email)).into(),
+        String::from("id") => auth_data.email.into(),
         String::from("name") => auth_data.name.into(),
-        String::from("email") => auth_data.email.into(),
         String::from("picture_url") => auth_data.picture.into(),
         String::from("auth_token") => hash(&Utc::now().to_string()).into(),
         String::from("created_at") => Utc::now().to_rfc3339().into(),
-        String::from("updated_at") => Utc::now().to_rfc3339().into(),
       }
     }
   }
 }
 
-pub fn auth_endpoint(request: Request) -> Response<Body> {
+pub fn auth(request: Request) -> Response<Body> {
   if let Ok(Some(params)) = request.payload::<Params>() {
     let url = format!("https://oauth2.googleapis.com/tokeninfo?id_token={}", params.id_token);
     // Validate the token using Google API
@@ -46,14 +45,14 @@ pub fn auth_endpoint(request: Request) -> Response<Body> {
         if let Ok(google_user) = response.json::<AuthData>() {
           let db = DynamoDbClient::new(Region::default());
           // Look for an existing user (id = hashed email)
-          match User::find(&db, hash(&google_user.email)) {
+          match User::find(&db, format!("USER_{}", hash(&google_user.email)), google_user.email.clone()) {
             Ok(Some(user)) => ok(user.json()),
             // Create a new user
             Ok(None) => match User::create(&db, google_user.into()) {
               Ok(user) => ok(user.json()),
-              Err(err) => internal_server_error(err.to_string()),
+              Err(err) => internal_server_error(format!("Error creating a user: {}", err.to_string())),
             },
-            Err(err) => internal_server_error(err.to_string()),
+            Err(err) => internal_server_error(format!("Error finding a user: {}", err.to_string())),
           }
         } else {
           unauthorized("Invalid id_token".to_string())
@@ -67,5 +66,5 @@ pub fn auth_endpoint(request: Request) -> Response<Body> {
 }
 
 fn main() {
-  lambda!(|request, _| Ok(auth_endpoint(request)));
+  lambda!(|request, _| Ok(auth(request)));
 }

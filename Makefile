@@ -1,5 +1,5 @@
 # List of all produced Lambda functions
-LAMBDAS := auth
+LAMBDAS := auth list-comments
 
 # Set proper variables depending on the platform
 ifeq ($(TARGET_NATIVE), 1)
@@ -51,6 +51,8 @@ clean:
 	rm -rf $(DEBUG_BOOTSTRAPS_DIR) $(RELEASE_BOOTSTRAPS_DIR)
 	rm -f $(addprefix $(DEBUG_DIR)/,$(LAMBDAS))
 	rm -f $(addprefix $(RELEASE_DIR)/,$(LAMBDAS))
+	rm -f .cargo/.bucket-exists
+	rm -f .cargo/.docker*
 
 # Docker scripts
 .PHONY: docker-debug
