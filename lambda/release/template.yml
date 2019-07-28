@@ -38,12 +38,12 @@ Resources:
       TableName: CommentableRsTable
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
-      - AttributeName: primary_key
-        AttributeType: S
-      - AttributeName: id
-        AttributeType: S
+        - AttributeName: primary_key
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
       KeySchema:
-      - AttributeName: primary_key
-        KeyType: HASH
-      - AttributeName: id
-        KeyType: RANGE
+        - AttributeName: primary_key
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE

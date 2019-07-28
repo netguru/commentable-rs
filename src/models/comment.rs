@@ -1,12 +1,12 @@
 use std::fmt;
 
 use chrono::{DateTime, Utc};
+use maplit::hashmap;
 use rusoto_dynamodb::{
   DynamoDb,
   DynamoDbClient,
   QueryInput,
 };
-use maplit::hashmap;
 use serde::Serialize;
 
 use crate::utils::db::{
@@ -18,10 +18,12 @@ use crate::utils::db::{
   attribute_value,
 };
 
-#[derive(Serialize)]
+pub type CommentId = String;
+
+#[derive(Serialize, Debug)]
 pub struct Comment {
   pub primary_key: String,
-  pub id: String,
+  pub id: CommentId,
   pub user_id: String,
   pub replies_to: Option<String>,
   pub body: String,
@@ -55,10 +57,10 @@ impl Comment {
       .and_then(|query_output|
         query_output
           .items
-          .and_then(|comments|
+          .and_then(|mut comments|
             comments
-              .iter()
-              .map(|comment_attributes| Comment::new(comment_attributes.clone()))
+              .drain(..)
+              .map(|comment_attributes| Comment::new(comment_attributes))
               .collect::<Result<Vec<Self>, DbError>>()
               .into()
           )

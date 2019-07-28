@@ -1,0 +1,10 @@
+{
+  "folders":
+  [
+    {
+      "path": ".",
+      "name": "Commentable.rs - Backend",
+      "folder_exclude_patterns": [".cargo", "target"],
+    }
+  ]
+}

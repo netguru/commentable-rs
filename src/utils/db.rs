@@ -1,3 +1,4 @@
+use std::fmt;
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
@@ -21,14 +22,15 @@ pub enum DbError {
   RecordInvalid(String),
 }
 
-impl ToString for DbError {
-  fn to_string(&self) -> String {
-    match self {
+impl fmt::Display for DbError {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "\"{}\"", match self {
       DbError::Error(msg) => format!("DbError::Error -> {}", msg),
       DbError::RecordInvalid(msg) => format!("DbError::RecordInvalid -> {}", msg),
-    }
+    })
   }
 }
+
 
 pub type DynamoDbAttributes = HashMap<String, AttributeValue>;
 

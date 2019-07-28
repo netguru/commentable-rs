@@ -50,18 +50,18 @@ pub fn auth(request: Request) -> Response<Body> {
             // Create a new user
             Ok(None) => match User::create(&db, google_user.into()) {
               Ok(user) => ok(user.json()),
-              Err(err) => internal_server_error(format!("Error creating a user: {}", err.to_string())),
+              Err(err) => internal_server_error(format!("Error creating a user: {}", err)),
             },
-            Err(err) => internal_server_error(format!("Error finding a user: {}", err.to_string())),
+            Err(err) => internal_server_error(format!("Error finding a user: {}", err)),
           }
         } else {
-          unauthorized("Invalid id_token".to_string())
+          unauthorized("Invalid id_token")
         }
       },
-      Err(error) => internal_server_error(error.to_string()),
+      Err(error) => internal_server_error(error),
     }
   } else {
-    bad_request("Invalid params.".to_string())
+    bad_request("Invalid params.")
   }
 }
 

@@ -10,5 +10,8 @@
 lambda/debug/bootstraps/
 lambda/release/bootstraps/
 
+# sublime workspace
+commentable-rs.sublime-workspace
+
 /target
 **/*.rs.bk
