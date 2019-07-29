@@ -14,6 +14,7 @@ use rusoto_dynamodb::{
 };
 use serde::Serialize;
 
+pub type CommentableId = String;
 pub static COMMENTABLE_RS_TABLE_NAME: &str = "CommentableRsTable";
 
 #[derive(Debug)]

@@ -96,7 +96,7 @@ impl ListComments {
           parent.replies.push(comment.id.clone());
         } else {
           return Err(internal_server_error(format!(
-            "Missing parent comment with ID: {}. Referenced in comment: {}",
+            "Missing parent comment with ID: {}. Referenced in comment: {:?}",
             parent_id,
             comment
           )));
