@@ -43,7 +43,7 @@ impl DynamoDbModel for Comment {
 }
 
 impl Comment {
-  pub fn list(db: &DynamoDbClient, commentable_id: String) -> Result<Vec<Self>, DbError> {
+  pub fn list(db: &DynamoDbClient, commentable_id: CommentableId) -> Result<Vec<Self>, DbError> {
     db.query(QueryInput {
       table_name: COMMENTABLE_RS_TABLE_NAME.to_string(),
       key_condition_expression: String::from("primary_key = :v1 and begins_with(id, :v2)").into(),

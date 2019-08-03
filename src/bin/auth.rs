@@ -7,7 +7,7 @@ use serde::Deserialize;
 
 use ::commentable_rs::utils::http::{ok, bad_request, unauthorized, internal_server_error};
 use ::commentable_rs::utils::db::{hash, DynamoDbModel, IntoDynamoDbAttributes};
-use ::commentable_rs::models::user::User;
+use ::commentable_rs::models::user::{User, TOKEN_DELIMITER};
 
 #[derive(Deserialize)]
 struct Params {
@@ -23,13 +23,18 @@ struct AuthData {
 
 impl From<AuthData> for IntoDynamoDbAttributes {
   fn from(auth_data: AuthData) -> Self {
+    let user_id = hash(&auth_data.email);
     IntoDynamoDbAttributes {
       attributes: hashmap!{
-        String::from("primary_key") => format!("USER_{}", hash(&auth_data.email)).into(),
-        String::from("id") => auth_data.email.into(),
+        String::from("primary_key") => format!("USER_{}", user_id).into(),
+        String::from("id") => format!("USER_{}", user_id).into(),
         String::from("name") => auth_data.name.into(),
         String::from("picture_url") => auth_data.picture.into(),
-        String::from("auth_token") => hash(&Utc::now().to_string()).into(),
+        String::from("auth_token") => format!("{}{}{}",
+          hash(&Utc::now().to_string()),
+          TOKEN_DELIMITER,
+          user_id
+        ).into(),
         String::from("created_at") => Utc::now().to_rfc3339().into(),
       }
     }

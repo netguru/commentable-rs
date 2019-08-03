@@ -30,8 +30,8 @@ Resources:
         GoogleAuthEndpoint:
           Type: Api
           Properties:
-            Path: /commentable/{id}/comments
-            Method: get
+            Path: /commentable/{id}/comments/list
+            Method: post
   CommentableRsTable:
     Type: AWS::DynamoDB::Table
     Properties:
