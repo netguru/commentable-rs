@@ -26,6 +26,9 @@ RELEASE_BOOTSTRAPS_DIR := lambda/release/bootstraps
 DEBUG_BOOTSTRAPS := $(addsuffix /bootstrap,$(addprefix $(DEBUG_BOOTSTRAPS_DIR)/,$(LAMBDAS)))
 RELEASE_BOOTSTRAPS := $(addsuffix /bootstrap,$(addprefix $(RELEASE_BOOTSTRAPS_DIR)/,$(LAMBDAS)))
 
+# aws sam cli ENV overrides
+SAM_ENV := SAM_CLI_TELEMETRY=0
+
 .PHONY: debug
 debug: $(DEBUG_BOOTSTRAPS)
 
@@ -81,15 +84,15 @@ run-debug: docker-debug
 
 .PHONY: run-release
 run-release: docker-release
-	sam local start-api --template lambda/release/template.yml
+	$(SAM_ENV) sam local start-api --template lambda/release/template.yml
 
 .PHONY: deploy
 deploy: package.yml
-	sam deploy --template-file package.yml --stack-name commentable-rs --capabilities CAPABILITY_IAM
+	$(SAM_ENV) sam deploy --template-file package.yml --stack-name commentable-rs --capabilities CAPABILITY_IAM
 	rm package.yml
 
 package.yml: docker-release | .cargo/.bucket-exists
-	sam package --template-file lambda/release/template.yml --s3-bucket commentable-rs --output-template-file package.yml
+	$(SAM_ENV) sam package --template-file lambda/release/template.yml --s3-bucket commentable-rs --output-template-file package.yml
 
 .cargo/.bucket-exists:
 	aws s3 mb s3://commentable-rs
