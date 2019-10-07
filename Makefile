@@ -1,6 +1,9 @@
 # List of all produced Lambda functions
 LAMBDAS := auth list-comments
 
+# All source code files
+SOURCE_CODE := $(wildcard src/*.rs) $(wildcard src/*/*.rs)
+
 # Set proper variables depending on the platform
 ifeq ($(TARGET_NATIVE), 1)
 	DEBUG_DIR := target/debug
@@ -40,9 +43,9 @@ $(RELEASE_BOOTSTRAPS_DIR)/%/bootstrap: $(RELEASE_DIR)/%
 	mkdir -p $(RELEASE_BOOTSTRAPS_DIR)/$* && cp $< $@
 
 # Binaries are created by cargo from files in the src/bin folder
-$(DEBUG_DIR)/%: src/bin/%.rs
+$(DEBUG_DIR)/%: $(SOURCE_CODE)
 	$(CARGO) build $(TARGET_FLAGS)
-$(RELEASE_DIR)/%: src/bin/%.rs
+$(RELEASE_DIR)/%: $(SOURCE_CODE)
 	$(CARGO) build --release $(TARGET_FLAGS)
 
 # Remove all binaries and bootstraps (but don't remove dependencies)
