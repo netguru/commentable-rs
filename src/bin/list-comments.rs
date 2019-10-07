@@ -6,11 +6,12 @@ use rusoto_core::Region;
 use rusoto_dynamodb::{DynamoDbClient};
 use serde::{Serialize, Deserialize};
 
-use ::commentable_rs::utils::db::{CommentableId, DynamoDbModel};
-use ::commentable_rs::models::user::{User, UserId, TOKEN_DELIMITER};
-use ::commentable_rs::models::comment::{Comment as CommentRecord, CommentId};
-use ::commentable_rs::models::reaction::{Reaction, ReactionType};
-use ::commentable_rs::utils::http::{ok, bad_request, internal_server_error, unauthorized, HttpError};
+use commentable_rs::models::comment::{Comment as CommentRecord, CommentId};
+use commentable_rs::models::user::{User, UserId};
+use commentable_rs::models::reaction::{Reaction, ReactionType};
+use commentable_rs::utils::current_user::CurrentUser;
+use commentable_rs::utils::db::{CommentableId};
+use commentable_rs::utils::http::{ok, bad_request, internal_server_error, HttpError};
 
 type ReactionCount = u16;
 
@@ -27,6 +28,7 @@ struct Comment {
 
 #[derive(Serialize, Clone)]
 struct UserJson {
+  id: String,
   name: String,
   picture_url: String,
 }
@@ -43,21 +45,36 @@ struct CommentJson {
 
 #[derive(Deserialize)]
 struct Params {
-  auth_token: String,
+  auth_token: Option<String>,
 }
 
 struct ListComments {
   db: DynamoDbClient,
+  params: Params,
   comments: BTreeMap<CommentId, Comment>,
   users: HashMap<UserId, UserJson>,
   current_user: Option<User>,
 }
 
+impl CurrentUser for ListComments {
+  fn db(&self) -> &DynamoDbClient {
+    &self.db
+  }
+
+  fn auth_token(&self) -> Option<String> {
+    self.params.auth_token.clone()
+  }
+
+  fn set_current_user(&mut self, user: Option<User>) {
+    self.current_user = user;
+  }
+}
+
 impl ListComments {
   pub fn respond_to(request: Request) -> Result<Response<Body>, HttpError> {
     if let Some(commentable_id) = request.path_parameters().get("id") {
-      Self::new()
-        .check_current_user(request)?
+      Self::new(request)?
+        .try_fetch_current_user()
         .fetch_comments(commentable_id.to_string())?
         .fetch_users()?
         .fetch_reactions(commentable_id.to_string())?
@@ -67,12 +84,19 @@ impl ListComments {
     }
   }
 
-  pub fn new() -> Self { Self {
-    db: DynamoDbClient::new(Region::default()),
-    comments: BTreeMap::new(),
-    users: HashMap::new(),
-    current_user: None,
-  }}
+  pub fn new(request: Request) -> Result<Self, HttpError> {
+    if let Ok(params) = request.payload::<Params>() {
+      Ok(Self {
+        db: DynamoDbClient::new(Region::default()),
+        comments: BTreeMap::new(),
+        users: HashMap::new(),
+        current_user: None,
+        params: params.unwrap_or(Params { auth_token: None }),
+      })
+    } else {
+      Err(bad_request("Invalid parameters"))
+    }
+  }
 
   pub fn fetch_comments(&mut self, commentable_id: CommentableId) -> Result<&mut Self, HttpError> {
     match CommentRecord::list(&self.db, commentable_id) {
@@ -93,15 +117,6 @@ impl ListComments {
     match User::batch_get(&self.db, user_ids) {
       Ok(users) => self.parse_users(users),
       Err(err) => Err(internal_server_error(err)),
-    }
-  }
-
-  pub fn check_current_user(&mut self, request: Request) -> Result<&mut Self, HttpError> {
-    if let Some(params) = request.payload::<Params>().map_err(|err| bad_request(format!("Invalid request parameters: {}", err)))? {
-      self.current_user = Some(self.fetch_current_user(params.auth_token)?);
-      Ok(self)
-    } else {
-      Ok(self)
     }
   }
 
@@ -150,7 +165,7 @@ impl ListComments {
   fn parse_users(&mut self, mut users: Vec<User>) -> Result<&mut Self, HttpError> {
     self.users = users
       .drain(..)
-      .map(|user| (user.id, UserJson { name: user.name, picture_url: user.picture_url }))
+      .map(|user| (user.id.clone(), UserJson { id: user.id, name: user.name, picture_url: user.picture_url }))
       .collect::<HashMap<UserId, UserJson>>();
     Ok(self)
   }
@@ -171,20 +186,6 @@ impl ListComments {
       }
     }
     Ok(self)
-  }
-
-  fn fetch_current_user(&self, auth_token: String) -> Result<User, HttpError> {
-    let user_id = format!("USER_{}",
-      auth_token
-        .split(TOKEN_DELIMITER)
-        .next()
-        .ok_or(unauthorized("Invalid access token."))?
-    );
-    match User::find(&self.db, user_id.clone(), user_id) {
-      Ok(Some(user)) => Ok(user),
-      Ok(None) => Err(unauthorized("Invalid access token.")),
-      Err(err) => Err(internal_server_error(err)),
-    }
   }
 
   fn serialize_comment(&self, comment: &Comment) -> Result<CommentJson, HttpError> {
