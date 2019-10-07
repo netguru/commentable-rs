@@ -28,12 +28,13 @@ impl From<AuthData> for IntoDynamoDbAttributes {
       attributes: hashmap!{
         String::from("primary_key") => format!("USER_{}", user_id).into(),
         String::from("id") => format!("USER_{}", user_id).into(),
+        String::from("email") => auth_data.email.into(),
         String::from("name") => auth_data.name.into(),
         String::from("picture_url") => auth_data.picture.into(),
         String::from("auth_token") => format!("{}{}{}",
-          hash(&Utc::now().to_string()),
+          user_id,
           TOKEN_DELIMITER,
-          user_id
+          hash(&Utc::now().to_string()),
         ).into(),
         String::from("created_at") => Utc::now().to_rfc3339().into(),
       }
