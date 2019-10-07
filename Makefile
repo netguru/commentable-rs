@@ -1,5 +1,5 @@
 # List of all produced Lambda functions
-LAMBDAS := auth list-comments
+LAMBDAS := auth list-comments add-comment
 
 # All source code files
 SOURCE_CODE := $(wildcard src/*.rs) $(wildcard src/*/*.rs)

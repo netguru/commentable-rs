@@ -32,6 +32,18 @@ Resources:
           Properties:
             Path: /commentable/{id}/comments/list
             Method: post
+  AddCommentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: bootstraps/add-comment
+      Policies:
+        - AmazonDynamoDBFullAccess
+      Events:
+        GoogleAuthEndpoint:
+          Type: Api
+          Properties:
+            Path: /commentable/{id}/comments/add
+            Method: post
   CommentableRsTable:
     Type: AWS::DynamoDB::Table
     Properties:

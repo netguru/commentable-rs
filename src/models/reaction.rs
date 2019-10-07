@@ -22,6 +22,8 @@ use crate::utils::db::{
 pub type ReactionId = String;
 pub type ReactionType = String;
 
+pub static REACTION_ID_PREFIX: &str = "REACTION_";
+
 #[derive(Serialize, Debug)]
 pub struct Reaction {
   pub primary_key: CommentableId,
@@ -52,7 +54,7 @@ impl Reaction {
       key_condition_expression: String::from("primary_key = :v1 and begins_with(id, :v2)").into(),
       expression_attribute_values: hashmap!{
         String::from(":v1") => attribute_value(commentable_id),
-        String::from(":v2") => attribute_value("REACTION_".to_string()),
+        String::from(":v2") => attribute_value(REACTION_ID_PREFIX.to_string()),
       }.into(),
       ..Default::default()
     }).sync()
