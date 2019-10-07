@@ -15,9 +15,12 @@ use crate::utils::db::{
   DynamoDbRecord,
   DbError,
   attribute_value,
+  hash,
 };
 
 pub type CommentId = String;
+
+pub static COMMENT_ID_PREFIX: &str = "COMMENT_";
 
 #[derive(Serialize, Debug)]
 pub struct Comment {
@@ -49,7 +52,7 @@ impl Comment {
       key_condition_expression: String::from("primary_key = :v1 and begins_with(id, :v2)").into(),
       expression_attribute_values: hashmap!{
         String::from(":v1") => attribute_value(commentable_id),
-        String::from(":v2") => attribute_value("COMMENT_".to_string()),
+        String::from(":v2") => attribute_value(COMMENT_ID_PREFIX.to_string()),
       }.into(),
       ..Default::default()
     }).sync()
@@ -67,4 +70,9 @@ impl Comment {
           .unwrap_or(Ok(vec![]))
       )
   }
+}
+
+pub fn comment_id(commentable_id: &str, user_id: &str) -> String {
+  let id = hash(&format!("{}{}{}", commentable_id, user_id, Utc::now().to_string()));
+  format!("{}{}{}", COMMENT_ID_PREFIX, Utc::now().timestamp_millis(), id)
 }
