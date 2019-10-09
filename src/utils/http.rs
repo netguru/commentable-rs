@@ -17,6 +17,11 @@ where T: ToString {
   http_response(body.to_string(), StatusCode::UNAUTHORIZED)
 }
 
+pub fn forbidden<T>(body: T) -> Response<Body>
+where T: ToString {
+  http_response(body.to_string(), StatusCode::FORBIDDEN)
+}
+
 pub fn not_found<T>(body: T) -> Response<Body>
 where T: ToString {
   http_response(body.to_string(), StatusCode::NOT_FOUND)

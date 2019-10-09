@@ -10,7 +10,7 @@ use commentable_rs::models::comment::{Comment as CommentRecord, CommentId};
 use commentable_rs::models::user::{User, UserId};
 use commentable_rs::models::reaction::{Reaction, ReactionType};
 use commentable_rs::utils::current_user::CurrentUser;
-use commentable_rs::utils::db::{CommentableId};
+use commentable_rs::utils::db::{CommentableId, DynamoDbModel};
 use commentable_rs::utils::http::{ok, bad_request, internal_server_error, HttpError};
 
 type ReactionCount = u16;
@@ -19,7 +19,7 @@ type ReactionCount = u16;
 struct Comment {
   id: CommentId,
   body: String,
-  user_id: UserId,
+  user_id: Option<UserId>,
   is_reply: bool,
   replies: Vec<CommentId>,
   reactions: HashMap<ReactionType, ReactionCount>,
@@ -37,7 +37,7 @@ struct UserJson {
 struct CommentJson {
   id: CommentId,
   body: String,
-  user: UserJson,
+  user: Option<UserJson>,
   replies: Vec<CommentJson>,
   reactions: HashMap<ReactionType, ReactionCount>,
   user_reactions: Vec<ReactionType>,
@@ -113,7 +113,8 @@ impl ListComments {
   }
 
   pub fn fetch_users(&mut self) -> Result<&mut Self, HttpError> {
-    let user_ids = self.comments.values().map(|comment| &comment.user_id).collect();
+    let user_ids = self.comments.values().filter_map(|comment| comment.user_id.as_ref()).collect();
+    println!("{:?}", user_ids);
     match User::batch_get(&self.db, user_ids) {
       Ok(users) => self.parse_users(users),
       Err(err) => Err(internal_server_error(err)),
@@ -142,11 +143,9 @@ impl ListComments {
         if let Some(parent) = self.comments.get_mut(parent_id) {
           parent.replies.push(comment.id.clone());
         } else {
-          return Err(internal_server_error(format!(
-            "Missing parent comment with ID: {}. Referenced in comment: {:?}",
-            parent_id,
-            comment
-          )));
+          // Remove orphaned comment, but don't care if it fails
+          // TODO: Add error reporting (Rollbar-like) to this operation
+          let _ = CommentRecord::delete(&self.db, comment.primary_key.clone(), comment.id.clone());
         }
       }
       self.comments.insert(comment.id.clone(), Comment {
@@ -192,14 +191,18 @@ impl ListComments {
     Ok(CommentJson {
       id: comment.id.clone(),
       body: comment.body.clone(),
-      user: self.users
-        .get(&comment.user_id)
-        .ok_or(internal_server_error(format!(
-          "Couldn't find a user with ID: {}. Reference in comment: {:?}",
-          &comment.user_id,
-          &comment,
-        )))?
-        .clone(),
+      user: match comment.user_id.as_ref() {
+        Some(user_id) =>
+          Some(self.users
+            .get(user_id)
+            .ok_or(internal_server_error(format!(
+              "Couldn't find a user with ID: {}. Reference in comment: {:?}",
+              &user_id,
+              &comment,
+            )))?
+            .clone()),
+        None => None,
+      },
       replies: comment.replies
         .iter()
         .map(|id| self.serialize_comment(self.comments.get(id).unwrap())) // safe unwrap

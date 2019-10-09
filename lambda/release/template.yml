@@ -44,6 +44,18 @@ Resources:
           Properties:
             Path: /commentable/{id}/comments/add
             Method: post
+  DeleteCommentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: bootstraps/delete-comment
+      Policies:
+        - AmazonDynamoDBFullAccess
+      Events:
+        GoogleAuthEndpoint:
+          Type: Api
+          Properties:
+            Path: /commentable/{id}/comments/delete
+            Method: post
   CommentableRsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -59,3 +71,20 @@ Resources:
           KeyType: HASH
         - AttributeName: id
           KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: replies-index
+          KeySchema:
+            - AttributeName: primary_key
+              KeyType: HASH
+            - AttributeName: replies_to
+              KeyType: RANGE
+          Projection:
+            ProjectionType: KEYS_ONLY
+        - IndexName: reactions-index
+          KeySchema:
+            - AttributeName: primary_key
+              KeyType: HASH
+            - AttributeName: comment_id
+              KeyType: RANGE
+          Projection:
+            ProjectionType: KEYS_ONLY

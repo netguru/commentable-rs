@@ -71,9 +71,9 @@ impl AddComment {
   }
 
   pub fn validate(&mut self) -> Result<&mut Self, HttpError> {
-    if self.params.auth_token.len() == 0 {
+    if self.params.auth_token.trim().len() == 0 {
       Err(bad_request("auth_token is required"))
-    } else if self.params.body.len() == 0 {
+    } else if self.params.body.trim().len() == 0 {
       Err(bad_request("body is required"))
     } else {
       Ok(self)
@@ -126,5 +126,5 @@ fn main() {
   lambda!(|request, _|
     AddComment::respond_to(request)
       .or_else(|error_response| Ok(error_response))
-    );
+  );
 }

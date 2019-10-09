@@ -10,12 +10,15 @@ use rusoto_dynamodb::{
   DynamoDbClient,
   GetItemInput,
   PutItemInput,
+  DeleteItemInput,
   AttributeValue
 };
 use serde::Serialize;
 
 pub type CommentableId = String;
 pub static COMMENTABLE_RS_TABLE_NAME: &str = "CommentableRsTable";
+pub static REPLIES_INDEX_NAME: &str = "replies-index";
+pub static REACTIONS_INDEX_NAME: &str = "reactions-index";
 
 #[derive(Debug)]
 pub enum DbError {
@@ -123,6 +126,22 @@ pub trait DynamoDbModel where Self: Sized + Serialize {
       .and_then(|_| Self::new(attributes))
   }
 
+  fn delete<T: Into<IntoAttributeValue>>(db: &DynamoDbClient, key: T, id: T) -> Result<(), DbError> {
+    db.delete_item(DeleteItemInput {
+      key: hashmap!{
+        String::from("primary_key") => attribute_value(key),
+        String::from("id") => attribute_value(id),
+      },
+      table_name: COMMENTABLE_RS_TABLE_NAME.to_string(),
+      ..Default::default()
+    }).sync()
+      .map_err(|err| DbError::Error(err.to_string()))
+      .and_then(|output| {
+        println!("{:?}", output);
+        Ok(())
+      })
+  }
+
   fn json(&self) -> String {
     serde_json::to_string(&self).unwrap()
   }
@@ -132,6 +151,16 @@ impl From<String> for IntoAttributeValue {
   fn from(string: String) -> Self {
     let attribute_value = AttributeValue {
       s: Some(string),
+      ..Default::default()
+    };
+    IntoAttributeValue { attribute_value }
+  }
+}
+
+impl From<bool> for IntoAttributeValue {
+  fn from(value: bool) -> Self {
+    let attribute_value = AttributeValue {
+      bool: Some(value),
       ..Default::default()
     };
     IntoAttributeValue { attribute_value }
