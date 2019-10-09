@@ -1,5 +1,5 @@
 # List of all produced Lambda functions
-LAMBDAS := auth list-comments add-comment
+LAMBDAS := auth list-comments add-comment delete-comment
 
 # All source code files
 SOURCE_CODE := $(wildcard src/*.rs) $(wildcard src/*/*.rs)
@@ -13,7 +13,7 @@ else
 	DEBUG_DIR := target/x86_64-unknown-linux-musl/debug
 	RELEASE_DIR := target/x86_64-unknown-linux-musl/release
 	TARGET_FLAGS := --target x86_64-unknown-linux-musl
-	CARGO = cargo
+	CARGO = CC_x86_64_unknown_linux_musl=x86_64-linux-musl-gcc cargo
 endif
 
 # The location of binaries depends on the target
@@ -46,9 +46,9 @@ $(RELEASE_BOOTSTRAPS_DIR)/%/bootstrap: $(RELEASE_DIR)/%
 	mkdir -p $(RELEASE_BOOTSTRAPS_DIR)/$* && cp $< $@
 
 # Binaries are created by cargo from files in the src/bin folder
-$(DEBUG_DIR)/%: $(SOURCE_CODE)
+$(DEBUG_BINARIES): $(SOURCE_CODE)
 	$(CARGO) build $(TARGET_FLAGS)
-$(RELEASE_DIR)/%: $(SOURCE_CODE)
+$(RELEASE_BINARIES): $(SOURCE_CODE)
 	$(CARGO) build --release $(TARGET_FLAGS)
 
 # Remove all binaries and bootstraps (but don't remove dependencies)
