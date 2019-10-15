@@ -13,6 +13,7 @@ use crate::utils::db::{
   REPLIES_INDEX_NAME,
   CommentableId,
   DynamoDbModel,
+  DynamoDbListableModel,
   DynamoDbAttributes,
   DynamoDbRecord,
   DbError,
@@ -49,34 +50,15 @@ impl DynamoDbModel for Comment {
   }
 }
 
-impl Comment {
-  pub fn list(db: &DynamoDbClient, commentable_id: CommentableId) -> Result<Vec<Self>, DbError> {
-    db.query(QueryInput {
-      table_name: COMMENTABLE_RS_TABLE_NAME.to_string(),
-      key_condition_expression: String::from("primary_key = :v1 and begins_with(id, :v2)").into(),
-      expression_attribute_values: hashmap!{
-        String::from(":v1") => attribute_value(commentable_id),
-        String::from(":v2") => attribute_value(COMMENT_ID_PREFIX.to_string()),
-      }.into(),
-      ..Default::default()
-    }).sync()
-      .map_err(|err| DbError::Error(err.to_string()))
-      .and_then(|query_output|
-        query_output
-          .items
-          .and_then(|mut comments|
-            comments
-              .drain(..)
-              .map(|comment_attributes| Self::new(comment_attributes))
-              .collect::<Result<Vec<Self>, DbError>>()
-              .into()
-          )
-          .unwrap_or(Ok(vec![]))
-      )
+impl DynamoDbListableModel for Comment {
+  fn id_prefix() -> String {
+    COMMENT_ID_PREFIX.to_string()
   }
+}
 
+impl Comment {
   pub fn has_replies(&self, db: &DynamoDbClient) -> Result<bool, DbError> {
-    db.query(QueryInput {
+    let replies = Self::query(&db, QueryInput {
       table_name: COMMENTABLE_RS_TABLE_NAME.to_string(),
       index_name: Some(REPLIES_INDEX_NAME.to_string()),
       key_condition_expression: String::from("primary_key = :v1 and replies_to = :v2").into(),
@@ -85,14 +67,9 @@ impl Comment {
         String::from(":v2") => attribute_value(self.id.clone()),
       }.into(),
       ..Default::default()
-    }).sync()
-      .map_err(|err| DbError::Error(err.to_string()))
-      .and_then(|query_output|
-        query_output
-          .items
-          .and_then(|comments| if comments.len() > 0 { Some(Ok(true)) } else { Some(Ok(false)) })
-          .unwrap_or(Ok(false))
-      )
+    })?;
+
+    if replies.len() > 0 { Ok(true) } else { Ok(false) }
   }
 
   pub fn erase(&mut self, db: &DynamoDbClient) -> Result<(), DbError> {
