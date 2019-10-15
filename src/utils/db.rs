@@ -9,13 +9,20 @@ use rusoto_dynamodb::{
   DynamoDb,
   DynamoDbClient,
   GetItemInput,
+  QueryInput,
   PutItemInput,
   DeleteItemInput,
+  BatchWriteItemInput,
+  WriteRequest,
+  DeleteRequest,
   AttributeValue
 };
 use serde::Serialize;
 
 pub type CommentableId = String;
+pub type PrimaryKey = String;
+pub type SortKey = String;
+
 pub static COMMENTABLE_RS_TABLE_NAME: &str = "CommentableRsTable";
 pub static REPLIES_INDEX_NAME: &str = "replies-index";
 pub static REACTIONS_INDEX_NAME: &str = "reactions-index";
@@ -115,6 +122,30 @@ pub trait DynamoDbModel where Self: Sized + Serialize {
       })
   }
 
+  fn query(db: &DynamoDbClient, query_input: QueryInput) -> Result<Vec<DynamoDbAttributes>, DbError> {
+    let mut results: Vec<DynamoDbAttributes> = vec![];
+    let mut last_evaluated_key = None;
+
+    'pagination: loop {
+      db.query(QueryInput {
+        exclusive_start_key: last_evaluated_key.clone(),
+        ..query_input.clone()
+      }).sync()
+        .map_err(|err| DbError::Error(err.to_string()))
+        .and_then(|query_output| {
+          results.append(query_output.items.unwrap_or(vec![]).as_mut());
+          last_evaluated_key = query_output.last_evaluated_key;
+          Ok(())
+        })?;
+
+      if last_evaluated_key == None {
+        break 'pagination;
+      }
+    }
+
+    return Ok(results);
+  }
+
   fn create(db: &DynamoDbClient, attributes: IntoDynamoDbAttributes) -> Result<Self, DbError> {
     let attributes: DynamoDbAttributes = attributes.into();
     db.put_item(PutItemInput {
@@ -135,15 +166,73 @@ pub trait DynamoDbModel where Self: Sized + Serialize {
       table_name: COMMENTABLE_RS_TABLE_NAME.to_string(),
       ..Default::default()
     }).sync()
-      .map_err(|err| DbError::Error(err.to_string()))
-      .and_then(|output| {
-        println!("{:?}", output);
-        Ok(())
-      })
+      .map_err(|err| DbError::Error(err.to_string()))?;
+
+    Ok(())
+  }
+
+  fn batch_delete(db: &DynamoDbClient, mut keys: Vec<(PrimaryKey, SortKey)>) -> Result<(), DbError> {
+    let mut request_items: HashMap<String, Vec<WriteRequest>> = hashmap!{
+      String::from(COMMENTABLE_RS_TABLE_NAME) =>
+        keys
+          .drain(..)
+          .map(|(primary_key, sort_key)| WriteRequest {
+            delete_request: Some(DeleteRequest {
+              key: hashmap!{
+                String::from("primary_key") => attribute_value(primary_key),
+                String::from("id") => attribute_value(sort_key),
+              }
+            }),
+            ..Default::default()
+          }).collect(),
+    };
+    // Each request can delete max 25 items, we add 2 to account for any unexpected DB or Network errors
+    let max_iterations = request_items.get(COMMENTABLE_RS_TABLE_NAME).unwrap().len() as f32 / 25.0 + 2.0;
+    let mut current_iteration = 0.0;
+
+    'pagination: loop {
+      current_iteration += 1.0;
+
+      db.batch_write_item(BatchWriteItemInput {
+        request_items: request_items.clone(),
+        ..Default::default()
+      }).sync()
+        .map_err(|err| DbError::Error(err.to_string()))
+        .and_then(|output| {
+          request_items = output.unprocessed_items.unwrap();
+          Ok(())
+        })?;
+
+      if request_items.is_empty() || current_iteration > max_iterations {
+        break 'pagination;
+      }
+    }
+
+    Ok(())
   }
 
   fn json(&self) -> String {
     serde_json::to_string(&self).unwrap()
+  }
+}
+
+// Trait for models that can implement #list (Comment & Reaction)
+pub trait DynamoDbListableModel where Self: DynamoDbModel {
+  fn id_prefix() -> String;
+
+  fn list(db: &DynamoDbClient, commentable_id: CommentableId) -> Result<Vec<Self>, DbError> {
+    Self::query(&db, QueryInput {
+      table_name: COMMENTABLE_RS_TABLE_NAME.to_string(),
+      key_condition_expression: String::from("primary_key = :v1 and begins_with(id, :v2)").into(),
+      expression_attribute_values: hashmap!{
+        String::from(":v1") => attribute_value(commentable_id),
+        String::from(":v2") => attribute_value(Self::id_prefix()),
+      }.into(),
+      ..Default::default()
+    })?
+       .drain(..)
+       .map(|attributes| Self::new(attributes))
+       .collect::<Result<Vec<Self>, DbError>>()
   }
 }
 
