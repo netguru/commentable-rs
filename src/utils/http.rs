@@ -40,3 +40,11 @@ fn http_response(body: String, status: StatusCode) -> Response<Body> {
     builder.status(status).body(Body::Text(body)).unwrap()
   }
 }
+
+pub fn missing_path_param(param: &str) -> String {
+  format!("Invalid path parameters: {} is required", param)
+}
+
+pub fn missing_request_param(param: &str) -> String {
+  format!("Invalid request parameters: {} is required", param)
+}

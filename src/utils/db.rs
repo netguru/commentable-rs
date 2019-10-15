@@ -11,6 +11,7 @@ use rusoto_dynamodb::{
   GetItemInput,
   QueryInput,
   PutItemInput,
+  UpdateItemInput,
   DeleteItemInput,
   BatchWriteItemInput,
   WriteRequest,
@@ -104,7 +105,7 @@ pub trait DynamoDbModel where Self: Sized + Serialize {
   // #new is used internally to create structs from DynamoDB records
   fn new(attributes: DynamoDbAttributes) -> Result<Self, DbError>;
 
-  fn find<T: Into<IntoAttributeValue>>(db: &DynamoDbClient, key: T, id: T) -> Result<Option<Self>, DbError> {
+  fn find(db: &DynamoDbClient, key: PrimaryKey, id: SortKey) -> Result<Option<Self>, DbError> {
     db.get_item(GetItemInput {
       key: hashmap!{
         String::from("primary_key") => attribute_value(key),
@@ -115,9 +116,9 @@ pub trait DynamoDbModel where Self: Sized + Serialize {
     }).sync()
       .map_err(|err| DbError::Error(err.to_string()))
       .and_then(|output| {
-        Ok(output.item.and_then(|record| {
-          // The unwrapping below is safe (is it?), as we're restoring a struct from an existing record
-          Some(Self::new(record).unwrap())
+        Ok(output.item.and_then(|attributes| {
+          // The unwrapping below should be safe, as we're restoring the struct from an existing record
+          Some(Self::new(attributes).unwrap())
         }))
       })
   }
@@ -157,7 +158,26 @@ pub trait DynamoDbModel where Self: Sized + Serialize {
       .and_then(|_| Self::new(attributes))
   }
 
-  fn delete<T: Into<IntoAttributeValue>>(db: &DynamoDbClient, key: T, id: T) -> Result<(), DbError> {
+  fn update(db: &DynamoDbClient, key: PrimaryKey, id: SortKey, expression: String, values: HashMap<String, AttributeValue>) -> Result<Self, DbError> {
+    db.update_item(UpdateItemInput {
+      table_name: COMMENTABLE_RS_TABLE_NAME.to_string(),
+      key: hashmap!{
+        String::from("primary_key") => attribute_value(key),
+        String::from("id") => attribute_value(id),
+      },
+      update_expression: Some(expression),
+      expression_attribute_values: Some(values),
+      return_values: Some(String::from("ALL_NEW")),
+      ..Default::default()
+    }).sync()
+      .map_err(|err| DbError::Error(err.to_string()))
+      .and_then(|output| Ok(
+        // The unwrapping below should be safe, as we're restoring the struct from an existing record
+        Self::new(output.attributes.unwrap()).unwrap()
+      ))
+  }
+
+  fn delete(db: &DynamoDbClient, key: PrimaryKey, id: SortKey) -> Result<(), DbError> {
     db.delete_item(DeleteItemInput {
       key: hashmap!{
         String::from("primary_key") => attribute_value(key),

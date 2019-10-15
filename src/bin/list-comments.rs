@@ -80,7 +80,7 @@ impl ListComments {
         .fetch_reactions(commentable_id.to_string())?
         .serialize()
     } else {
-      Err(bad_request("Invalid params: 'id' is required."))
+      Err(bad_request("Invalid path parameters: 'id' is required."))
     }
   }
 

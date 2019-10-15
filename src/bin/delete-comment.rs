@@ -15,7 +15,7 @@ use ::commentable_rs::models::{
 
 #[derive(Deserialize)]
 struct Params {
-  auth_token: String,
+  auth_token: AuthToken,
   comment_id: CommentId,
 }
 
@@ -64,7 +64,7 @@ impl DeleteComment {
   pub fn respond_to(request: Request) -> Result<Response<Body>, HttpError> {
     if let Some(commentable_id) = request.path_parameters().get("id") {
       Self::new(request, commentable_id.to_string())?
-        .validate()?
+        .validate_params()?
         .fetch_current_user()?
         .fetch_current_comment()?
         .authorize()?
@@ -72,7 +72,7 @@ impl DeleteComment {
         .delete_or_erase()?
         .serialize()
     } else {
-      Err(bad_request("Path parameter 'id' is required."))
+      Err(bad_request("Invalid path parameters: 'id' is required."))
     }
   }
 
@@ -91,7 +91,7 @@ impl DeleteComment {
     }
   }
 
-  pub fn validate(&mut self) -> Result<&mut Self, HttpError> {
+  pub fn validate_params(&mut self) -> Result<&mut Self, HttpError> {
     if self.params.auth_token.trim().len() == 0 {
       Err(bad_request("Parameter 'auth_token' is required."))
     } else if self.params.comment_id.trim().len() == 0 {
