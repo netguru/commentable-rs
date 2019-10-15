@@ -5,24 +5,24 @@ use rusoto_core::Region;
 use rusoto_dynamodb::{DynamoDbClient};
 use serde::Deserialize;
 
-use ::commentable_rs::utils::db::{DynamoDbModel, IntoDynamoDbAttributes};
+use ::commentable_rs::utils::db::{CommentableId, DynamoDbModel, IntoDynamoDbAttributes};
 use ::commentable_rs::utils::http::{ok, bad_request, internal_server_error, HttpError};
 use ::commentable_rs::utils::current_user::CurrentUser;
 use ::commentable_rs::models::{
-  user::User,
-  comment::{comment_id, Comment},
+  user::{AuthToken, User},
+  comment::{comment_id, Comment, CommentId},
 };
 
 #[derive(Deserialize)]
 struct Params {
-  auth_token: String,
-  replies_to: Option<String>,
+  auth_token: AuthToken,
+  replies_to: Option<CommentId>,
   body: String,
 }
 
 struct AddComment {
   db: DynamoDbClient,
-  commentable_id: String,
+  commentable_id: CommentableId,
   params: Params,
   current_user: Option<User>,
   comment: Option<Comment>,
@@ -33,7 +33,7 @@ impl CurrentUser for AddComment {
     &self.db
   }
 
-  fn auth_token(&self) -> Option<String> {
+  fn auth_token(&self) -> Option<AuthToken> {
     Some(self.params.auth_token.clone())
   }
 
@@ -56,7 +56,7 @@ impl AddComment {
     }
   }
 
-  pub fn new(request: Request, commentable_id: String) -> Result<Self, HttpError> {
+  pub fn new(request: Request, commentable_id: CommentableId) -> Result<Self, HttpError> {
     if let Ok(Some(params)) = request.payload::<Params>() {
       Ok(Self {
         db: DynamoDbClient::new(Region::default()),

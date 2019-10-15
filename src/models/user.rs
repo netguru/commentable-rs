@@ -20,8 +20,10 @@ use crate::utils::db::{
   COMMENTABLE_RS_TABLE_NAME,
 };
 
-pub static TOKEN_DELIMITER: &str = "-=#=-";
 pub type UserId = String;
+pub type AuthToken = String;
+
+pub static TOKEN_DELIMITER: &str = "-=#=-";
 
 #[derive(Serialize, Debug)]
 pub struct User {

@@ -8,7 +8,7 @@ use ::commentable_rs::utils::http::{ok, bad_request, forbidden, internal_server_
 use ::commentable_rs::utils::current_user::CurrentUser;
 use ::commentable_rs::utils::current_comment::CurrentComment;
 use ::commentable_rs::models::{
-  user::User,
+  user::{AuthToken, User},
   comment::{CommentId, Comment},
   reaction::Reaction,
 };
@@ -33,7 +33,7 @@ impl CurrentUser for DeleteComment {
     &self.db
   }
 
-  fn auth_token(&self) -> Option<String> {
+  fn auth_token(&self) -> Option<AuthToken> {
     Some(self.params.auth_token.clone())
   }
 
@@ -47,7 +47,11 @@ impl CurrentComment for DeleteComment {
     &self.db
   }
 
-  fn comment_id(&self) -> String {
+  fn commentable_id(&self) -> CommentableId {
+    self.commentable_id.clone()
+  }
+
+  fn comment_id(&self) -> CommentId {
     self.params.comment_id.clone()
   }
 
@@ -62,7 +66,7 @@ impl DeleteComment {
       Self::new(request, commentable_id.to_string())?
         .validate()?
         .fetch_current_user()?
-        .fetch_current_comment(commentable_id.to_string())?
+        .fetch_current_comment()?
         .authorize()?
         .check_replies()?
         .delete_or_erase()?

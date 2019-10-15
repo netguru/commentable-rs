@@ -18,6 +18,7 @@ use crate::utils::db::{
   DynamoDbRecord,
   DbError,
   attribute_value,
+  hash,
 };
 
 pub type ReactionId = String;
@@ -76,4 +77,9 @@ impl Reaction {
       Ok(())
     }
   }
+}
+
+pub fn reaction_id(comment_id: &CommentId, user_id: &UserId, reaction_type: &ReactionType) -> ReactionId {
+  let id = hash(&format!("{}{}{}", comment_id, user_id, reaction_type));
+  format!("{}{}", REACTION_ID_PREFIX, id)
 }

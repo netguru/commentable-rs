@@ -7,7 +7,7 @@ use rusoto_dynamodb::{DynamoDbClient};
 use serde::{Serialize, Deserialize};
 
 use commentable_rs::models::comment::{Comment as CommentRecord, CommentId};
-use commentable_rs::models::user::{User, UserId};
+use commentable_rs::models::user::{AuthToken, User, UserId};
 use commentable_rs::models::reaction::{Reaction, ReactionType};
 use commentable_rs::utils::current_user::CurrentUser;
 use commentable_rs::utils::db::{CommentableId, DynamoDbModel, DynamoDbListableModel};
@@ -28,7 +28,7 @@ struct Comment {
 
 #[derive(Serialize, Clone)]
 struct UserJson {
-  id: String,
+  id: UserId,
   name: String,
   picture_url: String,
 }
@@ -45,7 +45,7 @@ struct CommentJson {
 
 #[derive(Deserialize)]
 struct Params {
-  auth_token: Option<String>,
+  auth_token: Option<AuthToken>,
 }
 
 struct ListComments {

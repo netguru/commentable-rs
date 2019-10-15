@@ -8,6 +8,7 @@ use rusoto_dynamodb::{
 };
 use serde::Serialize;
 
+use crate::models::user::UserId;
 use crate::utils::db::{
   COMMENTABLE_RS_TABLE_NAME,
   REPLIES_INDEX_NAME,
@@ -29,8 +30,8 @@ pub static COMMENT_ID_PREFIX: &str = "COMMENT_";
 pub struct Comment {
   pub primary_key: CommentableId,
   pub id: CommentId,
-  pub user_id: Option<String>,
-  pub replies_to: Option<String>,
+  pub user_id: Option<UserId>,
+  pub replies_to: Option<CommentId>,
   pub body: String,
   pub is_deleted: Option<bool>,
   pub created_at: DateTime<Utc>,
@@ -96,7 +97,7 @@ impl Comment {
   }
 }
 
-pub fn comment_id(commentable_id: &str, user_id: &str) -> String {
+pub fn comment_id(commentable_id: &CommentableId, user_id: &UserId) -> String {
   let id = hash(&format!("{}{}{}", commentable_id, user_id, Utc::now().to_string()));
   format!("{}{}{}", COMMENT_ID_PREFIX, Utc::now().timestamp_millis(), id)
 }
