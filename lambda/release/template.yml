@@ -68,6 +68,18 @@ Resources:
           Properties:
             Path: /commentable/{id}/reactions/add
             Method: post
+  DeleteReactionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: bootstraps/delete-reaction
+      Policies:
+        - AmazonDynamoDBFullAccess
+      Events:
+        GoogleAuthEndpoint:
+          Type: Api
+          Properties:
+            Path: /commentable/{id}/reactions/delete
+            Method: post
   CommentableRsTable:
     Type: AWS::DynamoDB::Table
     Properties:

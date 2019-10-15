@@ -4,31 +4,32 @@ use rusoto_dynamodb::{DynamoDbClient};
 use serde::Deserialize;
 
 use ::commentable_rs::utils::db::{DynamoDbModel, CommentableId};
-use ::commentable_rs::utils::http::{ok, bad_request, forbidden, internal_server_error, HttpError};
+use ::commentable_rs::utils::http::{ok, bad_request, internal_server_error, HttpError};
 use ::commentable_rs::utils::current_user::CurrentUser;
 use ::commentable_rs::utils::current_comment::CurrentComment;
 use ::commentable_rs::models::{
-  user::{AuthToken, User},
+  user::{AuthToken, User, UserId},
   comment::{CommentId, Comment},
-  reaction::Reaction,
+  reaction::{reaction_id, Reaction, ReactionType},
 };
 
 #[derive(Deserialize)]
 struct Params {
   auth_token: String,
   comment_id: CommentId,
+  reaction_type: ReactionType,
 }
 
-struct DeleteComment {
+struct DeleteReaction {
   db: DynamoDbClient,
   commentable_id: CommentableId,
   params: Params,
   current_user: Option<User>,
-  comment: Option<Comment>,
-  has_replies: bool,
+  current_comment: Option<Comment>,
+  reaction: Option<Reaction>,
 }
 
-impl CurrentUser for DeleteComment {
+impl CurrentUser for DeleteReaction {
   fn db(&self) -> &DynamoDbClient {
     &self.db
   }
@@ -42,7 +43,7 @@ impl CurrentUser for DeleteComment {
   }
 }
 
-impl CurrentComment for DeleteComment {
+impl CurrentComment for DeleteReaction {
   fn db(&self) -> &DynamoDbClient {
     &self.db
   }
@@ -56,20 +57,19 @@ impl CurrentComment for DeleteComment {
   }
 
   fn set_current_comment(&mut self, comment: Comment) {
-    self.comment = Some(comment);
+    self.current_comment = Some(comment);
   }
 }
 
-impl DeleteComment {
+impl DeleteReaction {
   pub fn respond_to(request: Request) -> Result<Response<Body>, HttpError> {
     if let Some(commentable_id) = request.path_parameters().get("id") {
       Self::new(request, commentable_id.to_string())?
-        .validate()?
+        .validate_params()?
         .fetch_current_user()?
         .fetch_current_comment()?
-        .authorize()?
-        .check_replies()?
-        .delete_or_erase()?
+        .fetch_reaction()?
+        .delete()?
         .serialize()
     } else {
       Err(bad_request("Path parameter 'id' is required."))
@@ -80,10 +80,10 @@ impl DeleteComment {
     if let Ok(Some(params)) = request.payload::<Params>() {
       Ok(Self {
         db: DynamoDbClient::new(Region::default()),
-        comment: None,
-        current_user: None,
-        has_replies: false,
         commentable_id,
+        current_comment: None,
+        current_user: None,
+        reaction: None,
         params,
       })
     } else {
@@ -91,56 +91,55 @@ impl DeleteComment {
     }
   }
 
-  pub fn validate(&mut self) -> Result<&mut Self, HttpError> {
+  fn current_user_id(&self) -> &UserId {
+    &self.current_user.as_ref().unwrap().id
+  }
+
+  fn current_comment_id(&self) -> &CommentId {
+    &self.current_comment.as_ref().unwrap().id
+  }
+
+  pub fn validate_params(&mut self) -> Result<&mut Self, HttpError> {
     if self.params.auth_token.trim().len() == 0 {
-      Err(bad_request("Parameter 'auth_token' is required."))
+      Err(bad_request("Invalid request parameters: auth_token is required"))
     } else if self.params.comment_id.trim().len() == 0 {
-      Err(bad_request("Parameter 'comment_id' is required."))
+      Err(bad_request("Invalid request parameters: comment_id is required"))
+    } else if self.params.reaction_type.trim().len() == 0 {
+      Err(bad_request("Invalid request parameters: reaction_type is required"))
     } else {
       Ok(self)
     }
   }
 
-  pub fn authorize(&mut self) -> Result<&mut Self, HttpError> {
-    // The unwraps are safe because presence is guaranteed by calls
-    // to #fetch_current_user and #fetch_current_comment
-    if self.comment.as_ref().unwrap().user_id == Some(self.current_user.as_ref().unwrap().id.clone()) {
-      Ok(self)
-    } else {
-      Err(forbidden("Cannot delete comment."))
-    }
-  }
+  pub fn fetch_reaction(&mut self) -> Result<&mut Self, HttpError> {
+    let id = reaction_id(self.current_comment_id(), self.current_user_id(), &self.params.reaction_type);
 
-  pub fn check_replies(&mut self) -> Result<&mut Self, HttpError> {
-    match self.comment.as_ref().unwrap().has_replies(&self.db) {
-      Ok(has_replies) => self.has_replies = has_replies,
-      Err(error) => return Err(internal_server_error(error))
+    match Reaction::find(&self.db, self.commentable_id.clone(), id) {
+      Ok(Some(reaction)) => self.reaction = Some(reaction),
+      Ok(None) => return Err(bad_request("Could not delete reaction.")),
+      Err(err) => return Err(internal_server_error(err)),
     }
+
     Ok(self)
   }
 
-  pub fn delete_or_erase(&mut self) -> Result<&mut Self, HttpError> {
-    if self.has_replies {
-      self.comment.as_mut().unwrap().erase(&self.db)
-        .map_err(|err| internal_server_error(err))?;
-    } else {
-      Comment::delete(&self.db, self.commentable_id.clone(), self.params.comment_id.clone())
-        .map_err(|err| internal_server_error(err))?;
-      self.comment = None;
-    }
-    Reaction::remove_all_for_comment(&self.db, self.commentable_id.clone(), self.params.comment_id.clone())
+  pub fn delete(&mut self) -> Result<&mut Self, HttpError> {
+    let id = reaction_id(self.current_comment_id(), self.current_user_id(), &self.params.reaction_type);
+
+    Reaction::delete(&self.db, self.commentable_id.clone(), id)
       .map_err(|err| internal_server_error(err))?;
+
     Ok(self)
   }
 
   pub fn serialize(&self) -> Result<Response<Body>, HttpError> {
-    Ok(ok(serde_json::to_string(&self.comment).unwrap()))
+    Ok(ok(""))
   }
 }
 
 fn main() {
   lambda!(|request, _|
-    DeleteComment::respond_to(request)
+    DeleteReaction::respond_to(request)
       .or_else(|error_response| Ok(error_response))
   );
 }
