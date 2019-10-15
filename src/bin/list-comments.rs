@@ -10,7 +10,7 @@ use commentable_rs::models::comment::{Comment as CommentRecord, CommentId};
 use commentable_rs::models::user::{User, UserId};
 use commentable_rs::models::reaction::{Reaction, ReactionType};
 use commentable_rs::utils::current_user::CurrentUser;
-use commentable_rs::utils::db::{CommentableId, DynamoDbModel};
+use commentable_rs::utils::db::{CommentableId, DynamoDbModel, DynamoDbListableModel};
 use commentable_rs::utils::http::{ok, bad_request, internal_server_error, HttpError};
 
 type ReactionCount = u16;
@@ -114,7 +114,6 @@ impl ListComments {
 
   pub fn fetch_users(&mut self) -> Result<&mut Self, HttpError> {
     let user_ids = self.comments.values().filter_map(|comment| comment.user_id.as_ref()).collect();
-    println!("{:?}", user_ids);
     match User::batch_get(&self.db, user_ids) {
       Ok(users) => self.parse_users(users),
       Err(err) => Err(internal_server_error(err)),
@@ -143,9 +142,10 @@ impl ListComments {
         if let Some(parent) = self.comments.get_mut(parent_id) {
           parent.replies.push(comment.id.clone());
         } else {
-          // Remove orphaned comment, but don't care if it fails
+          // Remove orphaned comment and it's reactions, but don't care if it fails
           // TODO: Add error reporting (Rollbar-like) to this operation
           let _ = CommentRecord::delete(&self.db, comment.primary_key.clone(), comment.id.clone());
+          let _ = Reaction::remove_all_for_comment(&self.db, comment.primary_key.clone(), comment.id.clone());
         }
       }
       self.comments.insert(comment.id.clone(), Comment {

@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use maplit::hashmap;
 use rusoto_dynamodb::{
-  DynamoDb,
   DynamoDbClient,
   QueryInput,
 };
@@ -11,8 +10,10 @@ use crate::models::comment::CommentId;
 use crate::models::user::UserId;
 use crate::utils::db::{
   COMMENTABLE_RS_TABLE_NAME,
+  REACTIONS_INDEX_NAME,
   CommentableId,
   DynamoDbModel,
+  DynamoDbListableModel,
   DynamoDbAttributes,
   DynamoDbRecord,
   DbError,
@@ -47,29 +48,32 @@ impl DynamoDbModel for Reaction {
   }
 }
 
+impl DynamoDbListableModel for Reaction {
+  fn id_prefix() -> String {
+    REACTION_ID_PREFIX.to_string()
+  }
+}
+
 impl Reaction {
-  pub fn list(db: &DynamoDbClient, commentable_id: CommentableId) -> Result<Vec<Self>, DbError> {
-    db.query(QueryInput {
-      table_name: COMMENTABLE_RS_TABLE_NAME.to_string(),
-      key_condition_expression: String::from("primary_key = :v1 and begins_with(id, :v2)").into(),
-      expression_attribute_values: hashmap!{
-        String::from(":v1") => attribute_value(commentable_id),
-        String::from(":v2") => attribute_value(REACTION_ID_PREFIX.to_string()),
-      }.into(),
-      ..Default::default()
-    }).sync()
-      .map_err(|err| DbError::Error(err.to_string()))
-      .and_then(|query_output|
-        query_output
-          .items
-          .and_then(|mut replies|
-            replies
-              .drain(..)
-              .map(|reply_attributes| Self::new(reply_attributes))
-              .collect::<Result<Vec<Self>, DbError>>()
-              .into()
-          )
-          .unwrap_or(Ok(vec![]))
-      )
+  pub fn remove_all_for_comment(db: &DynamoDbClient, commentable_id: CommentableId, comment_id: CommentId) -> Result<(), DbError> {
+    let reactions =
+      Self::query(&db, QueryInput {
+        table_name: COMMENTABLE_RS_TABLE_NAME.to_string(),
+        index_name: Some(REACTIONS_INDEX_NAME.to_string()),
+        key_condition_expression: String::from("primary_key = :v1 and comment_id = :v2").into(),
+        expression_attribute_values: hashmap!{
+          String::from(":v1") => attribute_value(commentable_id),
+          String::from(":v2") => attribute_value(comment_id),
+        }.into(),
+        ..Default::default()
+      })?.drain(..)
+         .map(|mut key: DynamoDbAttributes| (key.string("primary_key").unwrap(), key.string("id").unwrap()))
+         .collect::<Vec<(CommentableId, ReactionId)>>();
+
+    if reactions.len() > 0 {
+      Reaction::batch_delete(&db, reactions)
+    } else {
+      Ok(())
+    }
   }
 }

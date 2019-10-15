@@ -10,6 +10,7 @@ use ::commentable_rs::utils::current_comment::CurrentComment;
 use ::commentable_rs::models::{
   user::User,
   comment::{CommentId, Comment},
+  reaction::Reaction,
 };
 
 #[derive(Deserialize)]
@@ -121,12 +122,15 @@ impl DeleteComment {
     } else {
       Comment::delete(&self.db, self.commentable_id.clone(), self.params.comment_id.clone())
         .map_err(|err| internal_server_error(err))?;
+      self.comment = None;
     }
+    Reaction::remove_all_for_comment(&self.db, self.commentable_id.clone(), self.params.comment_id.clone())
+      .map_err(|err| internal_server_error(err))?;
     Ok(self)
   }
 
   pub fn respond(&self) -> Result<Response<Body>, HttpError> {
-    Ok(ok(format!("{}", self.has_replies)))
+    Ok(ok(serde_json::to_string(&self.comment).unwrap()))
   }
 }
 
