@@ -4,8 +4,8 @@ use rusoto_core::Region;
 use rusoto_dynamodb::{DynamoDbClient};
 use serde::Deserialize;
 
-use ::commentable_rs::utils::db::{attribute_value, DynamoDbModel, CommentableId};
-use ::commentable_rs::utils::http::{
+use commentable_rs::utils::db::{attribute_value, DynamoDbModel, CommentableId};
+use commentable_rs::utils::http::{
   bad_request,
   forbidden,
   internal_server_error,
@@ -14,9 +14,9 @@ use ::commentable_rs::utils::http::{
   ok,
   HttpError,
 };
-use ::commentable_rs::utils::current_user::CurrentUser;
-use ::commentable_rs::utils::current_comment::CurrentComment;
-use ::commentable_rs::models::{
+use commentable_rs::utils::current_user::CurrentUser;
+use commentable_rs::utils::current_comment::CurrentComment;
+use commentable_rs::models::{
   user::{AuthToken, User},
   comment::{CommentId, Comment},
 };

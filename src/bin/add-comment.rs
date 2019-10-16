@@ -5,10 +5,10 @@ use rusoto_core::Region;
 use rusoto_dynamodb::{DynamoDbClient};
 use serde::Deserialize;
 
-use ::commentable_rs::utils::db::{CommentableId, DynamoDbModel, IntoDynamoDbAttributes};
-use ::commentable_rs::utils::http::{ok, bad_request, internal_server_error, HttpError};
-use ::commentable_rs::utils::current_user::CurrentUser;
-use ::commentable_rs::models::{
+use commentable_rs::utils::db::{CommentableId, DynamoDbModel, IntoDynamoDbAttributes};
+use commentable_rs::utils::http::{ok, bad_request, internal_server_error, HttpError};
+use commentable_rs::utils::current_user::CurrentUser;
+use commentable_rs::models::{
   user::{AuthToken, User},
   comment::{comment_id, Comment, CommentId},
 };

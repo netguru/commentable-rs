@@ -3,11 +3,11 @@ use rusoto_core::Region;
 use rusoto_dynamodb::{DynamoDbClient};
 use serde::Deserialize;
 
-use ::commentable_rs::utils::db::{DynamoDbModel, CommentableId};
-use ::commentable_rs::utils::http::{ok, bad_request, forbidden, internal_server_error, HttpError};
-use ::commentable_rs::utils::current_user::CurrentUser;
-use ::commentable_rs::utils::current_comment::CurrentComment;
-use ::commentable_rs::models::{
+use commentable_rs::utils::db::{DynamoDbModel, CommentableId};
+use commentable_rs::utils::http::{ok, bad_request, forbidden, internal_server_error, HttpError};
+use commentable_rs::utils::current_user::CurrentUser;
+use commentable_rs::utils::current_comment::CurrentComment;
+use commentable_rs::models::{
   user::{AuthToken, User},
   comment::{CommentId, Comment},
   reaction::Reaction,

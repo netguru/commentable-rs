@@ -8,6 +8,7 @@ Globals:
     Timeout: 3
 
 Resources:
+  # POST /auth
   GoogleAuthFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -20,6 +21,17 @@ Resources:
           Properties:
             Path: /auth
             Method: post
+  GoogleAuthFunctionOptions:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: bootstraps/options
+      Events:
+        GoogleAuthEndpoint:
+          Type: Api
+          Properties:
+            Path: /auth
+            Method: options
+  # POST /commentable/:id/comments/list
   ListCommentsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -32,6 +44,17 @@ Resources:
           Properties:
             Path: /commentable/{id}/comments/list
             Method: post
+  ListCommentsFunctionOptions:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: bootstraps/options
+      Events:
+        GoogleAuthEndpoint:
+          Type: Api
+          Properties:
+            Path: /commentable/{id}/comments/list
+            Method: options
+  # POST /commentable/:id/comments/add
   AddCommentFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -44,6 +67,17 @@ Resources:
           Properties:
             Path: /commentable/{id}/comments/add
             Method: post
+  AddCommentFunctionOptions:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: bootstraps/options
+      Events:
+        GoogleAuthEndpoint:
+          Type: Api
+          Properties:
+            Path: /commentable/{id}/comments/add
+            Method: options
+  # POST /commentable/:id/comments/edit
   EditCommentFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -56,6 +90,17 @@ Resources:
           Properties:
             Path: /commentable/{id}/comments/edit
             Method: post
+  EditCommentFunctionOptions:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: bootstraps/options
+      Events:
+        GoogleAuthEndpoint:
+          Type: Api
+          Properties:
+            Path: /commentable/{id}/comments/edit
+            Method: options
+  # POST /commentable/:id/comments/delete
   DeleteCommentFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -68,6 +113,17 @@ Resources:
           Properties:
             Path: /commentable/{id}/comments/delete
             Method: post
+  DeleteCommentFunctionOptions:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: bootstraps/options
+      Events:
+        GoogleAuthEndpoint:
+          Type: Api
+          Properties:
+            Path: /commentable/{id}/comments/delete
+            Method: options
+  # POST /commentable/:id/reactions/add
   AddReactionFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -80,6 +136,17 @@ Resources:
           Properties:
             Path: /commentable/{id}/reactions/add
             Method: post
+  AddReactionFunctionOptions:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: bootstraps/options
+      Events:
+        GoogleAuthEndpoint:
+          Type: Api
+          Properties:
+            Path: /commentable/{id}/reactions/add
+            Method: options
+  # POST /commentable/:id/reactions/delete
   DeleteReactionFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -92,6 +159,17 @@ Resources:
           Properties:
             Path: /commentable/{id}/reactions/delete
             Method: post
+  DeleteReactionFunctionOptions:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: bootstraps/options
+      Events:
+        GoogleAuthEndpoint:
+          Type: Api
+          Properties:
+            Path: /commentable/{id}/reactions/delete
+            Method: options
+
   CommentableRsTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -101,6 +179,10 @@ Resources:
         - AttributeName: primary_key
           AttributeType: S
         - AttributeName: id
+          AttributeType: S
+        - AttributeName: replies_to
+          AttributeType: S
+        - AttributeName: comment_id
           AttributeType: S
       KeySchema:
         - AttributeName: primary_key

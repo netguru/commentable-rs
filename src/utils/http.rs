@@ -34,6 +34,10 @@ where T: ToString {
 
 fn http_response(body: String, status: StatusCode) -> Response<Body> {
   let mut builder = Response::builder();
+  // Setup CORS
+  builder.header("Access-Control-Allow-Origin", "*");
+  builder.header("Access-Control-Allow-Headers", "Content-Type,Authorization");
+
   if body.is_empty() {
     builder.status(status).body(Body::Empty).unwrap()
   } else {

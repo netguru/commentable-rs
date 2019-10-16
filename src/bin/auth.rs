@@ -5,9 +5,9 @@ use rusoto_core::Region;
 use rusoto_dynamodb::{DynamoDbClient};
 use serde::Deserialize;
 
-use ::commentable_rs::utils::http::{ok, bad_request, unauthorized, internal_server_error};
-use ::commentable_rs::utils::db::{hash, DynamoDbModel, IntoDynamoDbAttributes};
-use ::commentable_rs::models::user::{User, TOKEN_DELIMITER};
+use commentable_rs::utils::http::{ok, bad_request, unauthorized, internal_server_error};
+use commentable_rs::utils::db::{hash, DynamoDbModel, IntoDynamoDbAttributes};
+use commentable_rs::models::user::{User, TOKEN_DELIMITER};
 
 #[derive(Deserialize)]
 struct Params {
