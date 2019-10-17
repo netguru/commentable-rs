@@ -6,6 +6,10 @@ Globals:
     Runtime: provided
     Handler: rust.binary
     Timeout: 3
+  Api:
+    Cors:
+      AllowOrigin: "'*'"
+      AllowHeaders: "'Content-Type,Authorization'"
 
 Resources:
   # POST /auth
