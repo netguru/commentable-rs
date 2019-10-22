@@ -1,15 +1,17 @@
+use std::collections::HashMap;
+
 use chrono::Utc;
 use lambda_http::{lambda, Request, Response, Body, RequestExt};
 use maplit::hashmap;
 use rusoto_core::Region;
 use rusoto_dynamodb::{DynamoDbClient};
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 
 use commentable_rs::utils::db::{CommentableId, DynamoDbModel, IntoDynamoDbAttributes};
 use commentable_rs::utils::http::{ok, bad_request, internal_server_error, HttpError};
 use commentable_rs::utils::current_user::CurrentUser;
 use commentable_rs::models::{
-  user::{AuthToken, User},
+  user::{AuthToken, User, UserId},
   comment::{comment_id, Comment, CommentId},
 };
 
@@ -26,6 +28,24 @@ struct AddComment {
   params: Params,
   current_user: Option<User>,
   comment: Option<Comment>,
+}
+
+#[derive(Serialize, Clone)]
+struct UserJson {
+  id: UserId,
+  name: String,
+  picture_url: String,
+}
+
+#[derive(Serialize)]
+struct CommentJson {
+  id: CommentId,
+  body: String,
+  user: Option<UserJson>,
+  replies: Vec<()>,
+  reactions: HashMap<(), ()>,
+  user_reactions: Vec<()>,
+  created_at: String,
 }
 
 impl CurrentUser for AddComment {
@@ -117,8 +137,22 @@ impl AddComment {
   }
 
   pub fn serialize(&mut self) -> Result<Response<Body>, HttpError> {
-    // The unwrap is safe because we check for comment presence in #save
-    Ok(ok(self.comment.as_ref().unwrap().json()))
+    // The unwraps are safe because we check for comment presence in #save
+    let comment = self.comment.as_ref().unwrap();
+    let user = self.current_user.as_ref().unwrap();
+    Ok(ok(serde_json::to_string(&CommentJson {
+      id: comment.id.clone(),
+      body: comment.body.clone(),
+      user: Some(UserJson {
+        id: user.id.clone(),
+        name: user.name.clone(),
+        picture_url: user.picture_url.clone(),
+      }),
+      replies: vec![],
+      reactions: hashmap!{},
+      user_reactions: vec![],
+      created_at: comment.created_at.to_string(),
+    }).unwrap()))
   }
 }
 

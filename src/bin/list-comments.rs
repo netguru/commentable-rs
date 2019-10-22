@@ -24,6 +24,7 @@ struct Comment {
   replies: Vec<CommentId>,
   reactions: HashMap<ReactionType, ReactionCount>,
   user_reactions: Vec<ReactionType>,
+  created_at: String,
 }
 
 #[derive(Serialize, Clone)]
@@ -41,6 +42,7 @@ struct CommentJson {
   replies: Vec<CommentJson>,
   reactions: HashMap<ReactionType, ReactionCount>,
   user_reactions: Vec<ReactionType>,
+  created_at: String,
 }
 
 #[derive(Deserialize)]
@@ -128,7 +130,7 @@ impl ListComments {
       .collect::<Result<Vec<CommentJson>, HttpError>>()?;
 
     serde_json::to_string(&hashmap! {
-      String::from("data") => serializable_comments,
+      String::from("comments") => serializable_comments,
     }).map_err(|err| internal_server_error(err))
       .and_then(|results| Ok(ok(results)))
   }
@@ -155,6 +157,7 @@ impl ListComments {
         replies: vec![],
         reactions: hashmap!{},
         user_reactions: vec![],
+        created_at: comment.created_at.to_string(),
         is_reply,
       });
     }
@@ -209,6 +212,7 @@ impl ListComments {
         .collect::<Result<Vec<CommentJson>, HttpError>>()?,
       reactions: comment.reactions.clone(),
       user_reactions: comment.user_reactions.clone(),
+      created_at: comment.created_at.clone(),
     })
   }
 }
