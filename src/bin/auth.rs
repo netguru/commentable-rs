@@ -51,7 +51,8 @@ pub fn auth(request: Request) -> Response<Body> {
         if let Ok(google_user) = response.json::<AuthData>() {
           let db = DynamoDbClient::new(Region::default());
           // Look for an existing user (id = hashed email)
-          match User::find(&db, format!("USER_{}", hash(&google_user.email)), google_user.email.clone()) {
+          let user_id = format!("USER_{}", hash(&google_user.email));
+          match User::find(&db, user_id.clone(), user_id) {
             Ok(Some(user)) => ok(user.json()),
             // Create a new user
             Ok(None) => match User::create(&db, google_user.into()) {
