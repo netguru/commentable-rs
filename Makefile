@@ -92,10 +92,10 @@ deploy: package.yml
 	rm package.yml
 
 package.yml: docker-release | .cargo/.bucket-exists
-	$(SAM_ENV) sam package --template-file lambda/release/template.yml --s3-bucket ng-commentable-rs --output-template-file package.yml
+	$(SAM_ENV) sam package --template-file lambda/release/template.yml --s3-bucket $(BUCKET_NAME) --output-template-file package.yml
 
 .cargo/.bucket-exists:
-	aws s3 mb s3://ng-commentable-rs
+	aws s3 mb s3://$(BUCKET_NAME)
 	touch .cargo/.bucket-exists
 
 # All-in-one scripts
