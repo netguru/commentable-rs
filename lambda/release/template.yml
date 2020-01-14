@@ -16,7 +16,7 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       Name: Commentable.rs API Gateway
-      StageName: Staging
+      StageName: Prod
   # POST /auth
   GoogleAuthFunction:
     Type: AWS::Serverless::Function
